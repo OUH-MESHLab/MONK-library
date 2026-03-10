@@ -1,11 +1,21 @@
-# Get all source files
-file(GLOB SOURCES "src/*.cpp")
-file(GLOB HEADERS "include/*.h")
+
+list(APPEND MONK_SOURCES
+  ByteVector.cpp
+  DataStack.cpp
+  FileManager.cpp
+  MFERData.cpp
+  MFERDataCollection.cpp
+  NihonKohdenData.cpp
+)
 
 # Add the library
-add_library(corelib STATIC ${SOURCES} ${HEADERS})
-target_link_libraries(corelib PUBLIC pybind11::module pybind11::embed) # Link to pybind11
+add_library(corelib ${MONK_SOURCES})
+target_include_directories(corelib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
-target_include_directories(corelib PUBLIC include) # Include the headers
+if(PYTHON_BINDINGS)
+ target_link_libraries(corelib PUBLIC pybind11::module pybind11::embed) # Link to pybind11
+endif()
 
-add_subdirectory(tests) # Add the tests
+if(BUILD_TESTING)
+  add_subdirectory(tests) # Add the tests
+endif()

@@ -1,36 +1,38 @@
 cmake_minimum_required(VERSION 3.8...3.18)
+cmake_policy(SET CMP0148 OLD)
 project(monklib)
 
+
+# Set C++ standard to 17
 set(CMAKE_CXX_STANDARD 17 CACHE STRING "C++ version selection")
 
-set(CMAKE_BUILD_WITH_INSTALL_RPATH ON) # Use RPATH for installed targets during build
+# Use RPATH for installed targets during build
+set(CMAKE_BUILD_WITH_INSTALL_RPATH ON)
 
-set(CMAKE_POSITION_INDEPENDENT_CODE ON) # Enable position independent code
+# Enable position independent code
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
-enable_testing() # Enable testing
+# Enable generation of python binding
+option(PYTHON_BINDINGS "Enables the build" OFF)
 
-# Fetch Google Test
-include(FetchContent)
-FetchContent_Declare(
-  googletest
-  GIT_REPOSITORY https://github.com/google/googletest.git
-  GIT_TAG release-1.12.0
-)
-set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
-FetchContent_MakeAvailable(googletest)
+# Enable testing
+if(BUILD_TESTING)
+  find_package(GTest REQUIRED)
 
-# Enable Google Test macros
-include(GoogleTest)
+  # Enable Google Test macros
+  include(GoogleTest)
 
-# Define the test data file
-set(TEST_DATA_FILE "${CMAKE_CURRENT_SOURCE_DIR}/resources/test-file.MWF")
+  # Define the test data file
+  set(TEST_DATA_FILE "${CMAKE_CURRENT_SOURCE_DIR}/resources/test-file.MWF")
 
-# Include pybind11
-add_subdirectory(pybind11)
+  enable_testing()
+endif()
+
+if(PYTHON_BINDINGS)
+  find_package(pybind11 REQUIRED)
+  find_package(Python3 REQUIRED COMPONENTS Development)
+  add_subdirectory(bindings)
+endif()
 
 # Include core library
 add_subdirectory(core)
-
-# Define module
-pybind11_add_module(${PROJECT_NAME} bindings/pybind.cpp)
-target_link_libraries(${PROJECT_NAME} PRIVATE corelib)
