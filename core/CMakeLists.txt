@@ -1,5 +1,4 @@
-
-list(APPEND MONK_SOURCES
+add_library(monk
   ByteVector.cpp
   DataStack.cpp
   FileManager.cpp
@@ -8,14 +7,32 @@ list(APPEND MONK_SOURCES
   NihonKohdenData.cpp
 )
 
-# Add the library
-add_library(corelib ${MONK_SOURCES})
-target_include_directories(corelib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+# Namespaced alias for use within the build tree and by downstream projects
+add_library(Monk::monk ALIAS monk)
 
-if(PYTHON_BINDINGS)
- target_link_libraries(corelib PUBLIC pybind11::module pybind11::embed) # Link to pybind11
-endif()
+target_include_directories(monk PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+  $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/monk>
+)
+
+install(TARGETS monk
+  EXPORT MonkTargets
+  ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+  LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+  RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+)
+
+install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/
+  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/monk
+  FILES_MATCHING PATTERN "*.h"
+)
+
+install(EXPORT MonkTargets
+  FILE MonkTargets.cmake
+  NAMESPACE Monk::
+  DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/monk
+)
 
 if(BUILD_TESTING)
-  add_subdirectory(tests) # Add the tests
+  add_subdirectory(tests)
 endif()

@@ -83,17 +83,4 @@ public:
     }
 };
 
-class InterpreterGuard
-{
-public:
-    InterpreterGuard() { initializeInterpreter(); }
-    ~InterpreterGuard() { finalizeInterpreter(); }
-
-private:
-    void initializeInterpreter() const;
-    void finalizeInterpreter() const;
-    
-    inline static int initializeCount = 0;
-};
-
 #endif
