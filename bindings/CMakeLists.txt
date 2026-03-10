@@ -1,2 +1,6 @@
-pybind11_add_module(${PROJECT_NAME} pybind.cpp)
-target_link_libraries(${PROJECT_NAME} PRIVATE corelib)
+pybind11_add_module(monklib pybind.cpp)
+target_link_libraries(monklib PRIVATE monk)
+
+install(TARGETS monklib
+  LIBRARY DESTINATION ${Python3_SITEARCH}
+)

@@ -1,11 +1,7 @@
 #include "ByteVector.h"
-#include <pybind11/embed.h>
 #include <cstdint>
-#include <vector>
 #include <sstream>
-#include <iostream>
-
-namespace py = pybind11;
+#include <stdexcept>
 
 std::string ByteVector::stringify() const
 {
@@ -19,56 +15,78 @@ std::string ByteVector::stringify() const
     return string;
 }
 
-std::string ByteVector::toString(Encoding encoding) const
+// Converts a UTF-16LE byte sequence to a UTF-8 string.
+static std::string utf16leToUtf8(const uint8_t *data, size_t size)
 {
-    InterpreterGuard guard; // Initialize embedded python interpreter and finalize when out of scope
+    if (size % 2 != 0)
+        throw std::runtime_error("UTF-16LE data must have an even number of bytes.");
 
-    py::gil_scoped_acquire acquire; // Ensure GIL is held
+    std::string result;
+    result.reserve(size);
 
-    try
+    for (size_t i = 0; i < size; i += 2)
     {
-        std::string str(this->begin(), this->end());
-        if (encoding == Encoding::ASCII || encoding == Encoding::UTF8)
+        uint16_t unit = static_cast<uint16_t>(data[i]) | (static_cast<uint16_t>(data[i + 1]) << 8);
+        uint32_t codepoint;
+
+        if (unit >= 0xD800 && unit <= 0xDBFF) // high surrogate
         {
-            return py::bytes(str).attr("decode")(py::str("utf-8")).cast<std::string>();
+            if (i + 4 > size)
+                throw std::runtime_error("Incomplete surrogate pair in UTF-16LE data.");
+            uint16_t low = static_cast<uint16_t>(data[i + 2]) | (static_cast<uint16_t>(data[i + 3]) << 8);
+            if (low < 0xDC00 || low > 0xDFFF)
+                throw std::runtime_error("Invalid surrogate pair in UTF-16LE data.");
+            codepoint = 0x10000u + ((static_cast<uint32_t>(unit - 0xD800) << 10) | (low - 0xDC00));
+            i += 2;
         }
-        else if (encoding == Encoding::UTF16LE)
+        else if (unit >= 0xDC00 && unit <= 0xDFFF) // lone low surrogate
         {
-            return py::bytes(str).attr("decode")(py::str("utf-16-le")).cast<std::string>();
+            throw std::runtime_error("Unexpected low surrogate in UTF-16LE data.");
         }
         else
         {
-            throw std::runtime_error("Unsupported encoding.");
+            codepoint = unit;
+        }
+
+        if (codepoint <= 0x7F)
+        {
+            result.push_back(static_cast<char>(codepoint));
+        }
+        else if (codepoint <= 0x7FF)
+        {
+            result.push_back(static_cast<char>(0xC0 | (codepoint >> 6)));
+            result.push_back(static_cast<char>(0x80 | (codepoint & 0x3F)));
+        }
+        else if (codepoint <= 0xFFFF)
+        {
+            result.push_back(static_cast<char>(0xE0 | (codepoint >> 12)));
+            result.push_back(static_cast<char>(0x80 | ((codepoint >> 6) & 0x3F)));
+            result.push_back(static_cast<char>(0x80 | (codepoint & 0x3F)));
+        }
+        else
+        {
+            result.push_back(static_cast<char>(0xF0 | (codepoint >> 18)));
+            result.push_back(static_cast<char>(0x80 | ((codepoint >> 12) & 0x3F)));
+            result.push_back(static_cast<char>(0x80 | ((codepoint >> 6) & 0x3F)));
+            result.push_back(static_cast<char>(0x80 | (codepoint & 0x3F)));
         }
     }
-    catch (const py::error_already_set &e)
-    {
-        throw std::runtime_error("Python error occurred in ByteVector::toString");
-    }
+
+    return result;
 }
 
-void InterpreterGuard::initializeInterpreter() const
+std::string ByteVector::toString(Encoding encoding) const
 {
-    if (initializeCount++ == 0) // If first initialization
+    if (encoding == Encoding::ASCII || encoding == Encoding::UTF8)
     {
-        if (Py_IsInitialized() == 0) // If Python interpreter is not initialized
-        {
-            py::initialize_interpreter(); // Initialize Python interpreter
-        }
-        else // If Python interpreter is already initialized
-        {
-            initializeCount++; // Increment the count to avoid re-initialization
-        }
+        return std::string(this->begin(), this->end());
     }
-}
-
-void InterpreterGuard::finalizeInterpreter() const
-{
-    if (--initializeCount == 0) // If last finalization
+    else if (encoding == Encoding::UTF16LE)
     {
-        if (Py_IsInitialized() != 0) // If Python interpreter is initialized
-        {
-            py::finalize_interpreter(); // Finalize Python interpreter
-        }
+        return utf16leToUtf8(this->data(), this->size());
+    }
+    else
+    {
+        throw std::runtime_error("Unsupported encoding.");
     }
 }
