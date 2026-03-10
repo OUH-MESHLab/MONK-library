@@ -351,12 +351,24 @@ ByteVector WAV::toByteVector() const
 END::END(DataStack *dataStack)
 {
     length = 0x00;
+    if (dataStack->size() > 0)
+    {
+        hasLengthByte = true;
+        length = dataStack->pop_byte();
+        if (length > 0)
+            contents = dataStack->pop_front(length);
+    }
 }
 
 ByteVector END::toByteVector() const
 {
     ByteVector byteVector;
     byteVector.push_back(getTag());
+    if (hasLengthByte)
+    {
+        byteVector.push_back(static_cast<uint8_t>(length));
+        byteVector.insert(byteVector.end(), contents.begin(), contents.end());
+    }
     return byteVector;
 }
 

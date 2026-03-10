@@ -357,6 +357,7 @@ public:
     virtual ByteVector toByteVector() const;
 
 private:
+    bool hasLengthByte = false;
     std::string contentsString(std::string left) const;
 };
 
