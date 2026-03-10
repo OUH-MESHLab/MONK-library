@@ -11,6 +11,8 @@ include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
 
 option(MONK_PYTHON_BINDINGS "Build Python extension module" OFF)
+option(MONK_BUILD_TOOLS "Build CLI tools (mferdump, mferinfo, mferanon, mfer2csv)" ON)
+
 # Path to the test data file, used by both core tests and tool integration tests
 set(MONK_TEST_DATA_FILE "${CMAKE_CURRENT_SOURCE_DIR}/resources/test-file.MWF")
 
@@ -27,6 +29,10 @@ if(MONK_PYTHON_BINDINGS)
   find_package(pybind11 REQUIRED)
   find_package(Python3 REQUIRED COMPONENTS Development)
   add_subdirectory(bindings)
+endif()
+
+if(MONK_BUILD_TOOLS)
+  add_subdirectory(tools)
 endif()
 
 # Install CMake package config files so downstream projects can use find_package(monk)
